@@ -20,6 +20,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def makeUnit(vec):
     norm = np.linalg.norm(vec)
+    #norm = np.dot(vec,vec)**0.5
     return vec/norm
     
 def rotationMatrix(axis, theta):
@@ -27,8 +28,7 @@ def rotationMatrix(axis, theta):
     Return the rotation matrix associated with counterclockwise rotation about
     the given axis by theta radians.
     """
-    axis = np.asarray(axis)
-    axis = axis/np.sqrt(np.dot(axis, axis))
+    axis = makeUnit(np.asarray(axis))
     a = np.cos(theta/2.0)
     b, c, d = -axis*np.sin(theta/2.0)
     aa, bb, cc, dd = a*a, b*b, c*c, d*d
@@ -125,22 +125,19 @@ class Frame(object):
         angA     = np.empty(self.noAtms,dtype=float)
         binomVec = np.empty(self.noAtms,dtype=object)
 
-        for i in xrange(self.noAtms):                                   # the -1 starts by connecting the last atom to the first, then goes as normal
+        for i in xrange(self.noAtms):                                   # the -1 starts by connecting the last atom to the first, then goes as normal (total-1)
             self.atoms[i-1].toNext = makeUnit(self.atoms[i].getPos()-self.atoms[i-1].getPos())
         
         for i in xrange(self.noAtms):
             self.atoms[i].generateMVec()
         
-        binomVec[0] = makeUnit(np.cross(self.atoms[-1].toNext,self.atoms[0].toNext))
-        for i in xrange(1,self.noAtms):
+        for i in xrange(self.noAtms):
             binomVec[i] = makeUnit(np.cross(self.atoms[i-1].toNext,self.atoms[i].toNext))
             
-        angA[0] = np.arccos(np.dot(self.atoms[-1].toNext,self.atoms[0].toNext))
-        for i in xrange(1,self.noAtms):
+        for i in xrange(self.noAtms):
             angA[i] = np.arccos(np.dot(self.atoms[i-1].toNext,self.atoms[i].toNext))
         
-        self.atoms[0].mShift = np.dot(self.atoms[-1].mVec, rotationMatrix(binomVec[0],angA[0]))
-        for i in xrange(1,self.noAtms):
+        for i in xrange(self.noAtms):
             self.atoms[i].mShift = np.dot(self.atoms[i-1].mVec, rotationMatrix(binomVec[i],angA[i]))
         
         Tw = 0.0
