@@ -485,7 +485,16 @@ void add_DNA(atom last,atom lastlast,vector<atom> &atoms,vector<bond> &bonds,vec
 
 int main()
 {
-  int N,XYZ;
+  int Tot,N,XYZ;
+ 
+ gettwists:
+  cout<<"Maximum number of twists to introduce: "<<endl; 
+  cin>>Tot;
+  if (! Tot>0 ) {
+    cout<<"Must be an integer >0."<<endl; 
+    goto getsize;
+  }
+  
  getsize:
   cout<<"Length of DNA: "<<endl; 
   cin>>N;
@@ -493,6 +502,7 @@ int main()
     cout<<"Length must be an integer >0."<<endl; 
     goto getsize;
   }
+ 
  getdim:
   cout<<"XYZ Dimensions of box: "<<endl; 
   cin>>XYZ;
@@ -501,7 +511,7 @@ int main()
     goto getdim;
   }
   
-  for (int i=0; i<20;i++)
+  for (int i=0; i<Tot;i++)
   {
     function(i,N,XYZ);
   }  
