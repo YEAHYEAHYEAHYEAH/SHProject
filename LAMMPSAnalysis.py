@@ -138,7 +138,7 @@ class Frame(object):
             angA[i] = np.arccos(np.dot(self.atoms[i-1].toNext,self.atoms[i].toNext))
         
         for i in xrange(self.noAtms):
-            self.atoms[i].mShift = np.dot(self.atoms[i-1].mVec, rotationMatrix(binomVec[i],angA[i]))
+            self.atoms[i].mShift = np.dot(rotationMatrix(binomVec[i],angA[i]),self.atoms[i-1].mVec)
         
         Tw = 0.0
         for i in xrange(self.noAtms):
@@ -266,7 +266,7 @@ for fname in glob.glob('dna/*'):
     writhes = []
     total = []
 
-    for i in range(200):
+    for i in range(5):
         frame = Frame(lammpsDump)
         if (i%1==0):
             frameNo.append(i)
@@ -274,9 +274,9 @@ for fname in glob.glob('dna/*'):
             writhes.append((frame.totalWrithes))
             total.append((frame.totalTwists)+(frame.totalWrithes))
 
-    pl.plot(frameNo,twists,  color="r", label="Twists")
-    pl.plot(frameNo,writhes, color="b", label="Writhes")
-    pl.plot(frameNo,total,   color="k", label="Total")
+    pl.plot(frameNo,twists,  color="r", label="Twists" ,marker="o", linestyle=" ")
+    pl.plot(frameNo,writhes, color="b", label="Writhes",marker="o", linestyle=" ")
+    pl.plot(frameNo,total,   color="k", label="Total"  ,marker="o", linestyle=" ")
     pl.xlabel("Frame Number")
     pl.ylabel("Total Linking Number")
     pl.title(title)
@@ -286,4 +286,5 @@ for fname in glob.glob('dna/*'):
             transparent=False, bbox_inches='tight', pad_inches=0.01,
             frameon=None)
     pl.close()
+
 
