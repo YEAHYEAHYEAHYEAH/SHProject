@@ -16,7 +16,16 @@ import glob
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
-     
+
+
+def progress(count, total, status=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', status))
+    sys.stdout.flush() #
+
 
 def makeUnit(vec):
     norm = np.linalg.norm(vec)
@@ -80,8 +89,8 @@ class Frame(object):
         self.xyzPos = np.array(frame)[:,2:5]
         del frame[:]
         self.noAtms = len(atoms)        
-        self.calcTwists()
-        self.calcWrithes()
+        #self.calcTwists()
+        #self.calcWrithes()
         
 
     def plot(self):
@@ -146,9 +155,11 @@ class Frame(object):
         Tw=Tw/(2.0*m.pi)
         
         self.totalTwists = Tw
+        return self.totalTwists
     
     def calcWrithes(self):
         self.totalWrithes = calculate_Writhe(self.atoms)
+        return self.totalWrithes
 
 
 
@@ -168,8 +179,8 @@ class Atom(object):
             self._atmXYZ[i] = self._atmXYZ[i] + self._atmIm[i]*bcDiff #unwrap
         self._atmQTN  = np.array(atomLine[8:12])
         self.qtnAxisF()
-        self.qtnAxisU()
-        self.qtnAxisV()
+        #self.qtnAxisU()
+        #self.qtnAxisV()
         self.toNext = np.zeros(3)
         self.mVec      = np.zeros(3)
         self.mShift    = np.zeros(3)
@@ -181,8 +192,8 @@ class Atom(object):
     def getQuat(self):   return self._atmQTN
     def getImFlgs(self): return self._atmIm
     def getF(self):      return self._fAxis
-    def getU(self):      return self._uAxis
-    def getV(self):      return self._vAxis
+    #def getU(self):      return self._uAxis
+    #def getV(self):      return self._vAxis
 
     def magSep(self,B):
         """ 
@@ -255,24 +266,28 @@ class Atom(object):
 
 
 
-for fname in glob.glob('dna/*'):
-    print fname
+for fname in glob.glob('dna2/*'):
     title = fname[fname.find("/")+1:-4]
-    print title
     lammpsDump = open(fname, 'r')
 
     frameNo = []
     twists = []
     writhes = []
     total = []
-
-    for i in range(5):
+    
+    for i in range(5000):
         frame = Frame(lammpsDump)
-        if (i%1==0):
+        progress(i, 5000, status='{}'.format(title))
+        if (i%50==0):
+
             frameNo.append(i)
-            twists.append((frame.totalTwists))
-            writhes.append((frame.totalWrithes))
-            total.append((frame.totalTwists)+(frame.totalWrithes))
+            
+            Tw = frame.calcTwists()
+            Wr = frame.calcWrithes()
+            
+            twists.append(Tw)
+            writhes.append(Wr)
+            total.append(Tw+Wr)
 
     pl.plot(frameNo,twists,  color="r", label="Twists" ,marker="o", linestyle=" ")
     pl.plot(frameNo,writhes, color="b", label="Writhes",marker="o", linestyle=" ")
@@ -286,5 +301,4 @@ for fname in glob.glob('dna/*'):
             transparent=False, bbox_inches='tight', pad_inches=0.01,
             frameon=None)
     pl.close()
-
-
+    print "Complete["
