@@ -13,6 +13,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 from supercoiling_cython import calculate_Writhe
 import glob
+import scipy.odr as odr
+
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -51,7 +53,17 @@ class Frame(object):
     A class to hold frame data, a sorted list of atom objects which have
     been scaled and unwrapped.
     """
-    def __init__(self,inputStream):
+    def __init__(self,inputS,noFr=0,skipFrames = False):
+        if skipFrames==True: self.skipFr(inputS,noFr)
+        else: self.analyseFrame(inputS)
+    
+    def skipFr(self,inputStream,noF):
+        noLines = noF*509
+        for i in xrange(noLines):
+            next(inputStream)
+            if i==noLines-1: print i/509.
+
+    def analyseFrame(self,inputStream):
         frameStart = r'c_quat[4] '
         frameEnd   = r'ITEM: TIMESTEP'
         inFrame = False
@@ -91,7 +103,6 @@ class Frame(object):
         self.noAtms = len(atoms)        
         #self.calcTwists()
         #self.calcWrithes()
-        
 
     def plot(self):
         """
@@ -265,40 +276,116 @@ class Atom(object):
 
 
 
+def plotFigs():
+    for fname in glob.glob('dna2/*'):
+        title = fname[fname.find("/")+1:-4]
+        lammpsDump = open(fname, 'r')
 
-for fname in glob.glob('dna2/*'):
-    title = fname[fname.find("/")+1:-4]
-    lammpsDump = open(fname, 'r')
+        frameNo = []
+        twists = []
+        writhes = []
+        total = []
+        
+        for i in range(10000):
+            frame = Frame(lammpsDump)
+            progress(i, 10000, status='{}'.format(title))
+            if (i%100==0):
 
-    frameNo = []
-    twists = []
-    writhes = []
-    total = []
+                frameNo.append(i)
+                
+                Tw = frame.calcTwists()
+                Wr = frame.calcWrithes()
+                
+                twists.append(Tw)
+                writhes.append(Wr)
+                total.append(Tw+Wr)
+
+        pl.plot(frameNo,twists,  color="r", label="Twists" ,marker="o", linestyle=" ")
+        pl.plot(frameNo,writhes, color="b", label="Writhes",marker="o", linestyle=" ")
+        pl.plot(frameNo,total,   color="k", label="Total"  ,marker="o", linestyle=" ")
+        pl.xlabel("Frame Number")
+        pl.ylabel("Total Linking Number")
+        pl.title(title)
+        pl.legend(loc="best")
+        pl.savefig(title, dpi=300, facecolor='w', edgecolor='w',
+                orientation='landscape', papertype=None, format=None,
+                transparent=False, bbox_inches='tight', pad_inches=0.01,
+                frameon=None)
+        pl.close()
+        print "Complete["
+        
+def writeFiles():
+    for fname in glob.glob('dna2/*'):
+        title = fname[fname.find("/")+1:-4]
+        lammpsDump = open(fname, 'r')
+        
+        writeFile = title+"Data.txt"
+        dataFile = open(writeFile,'w')
+        dataFile.write("500 beads: initial {}\nFrame,Tw,Wr\n\n".format(title))
+        frame = Frame(lammpsDump,noFr=10000,skipFrames=True)
+        for i in range(40000):
+            frame = Frame(lammpsDump)
+            progress(i, 40000, status='{}'.format(title))
+            dataFile.write("{},{},{}\n".format(i,frame.calcTwists(),frame.calcWrithes()))
+
+def str8Line(A,x): return A[0]*x + A[1]
+
+
+def autoCorrelation(xData):
+    maxTp = 400
+
+    xMean = np.average(xData)
+    C = np.zeros(maxTp)
+    tPr = np.zeros(maxTp)
+    for i in xrange(maxTp):
+        xLen = xData.shape[0]
+        runTot = 0
+        for j in xrange(xLen-i):
+            runTot+=xData[j]*xData[j+i]
+        C[i]=(float(runTot)/float(xLen-i))
+        tPr[i]=(i)
+    C = C - xMean**2.
     
-    for i in range(5000):
-        frame = Frame(lammpsDump)
-        progress(i, 5000, status='{}'.format(title))
-        if (i%50==0):
+    lnC = np.log(C)
+    myodr = odr.ODR(odr.Data(tPr,lnC), odr.Model(str8Line), beta0=[-0.00558, -1.0])
+    result = myodr.run()
+    fitLine = result.beta[0]*tPr + result.beta[1]
+    
+    pl.plot(tPr,lnC)
+    pl.plot(tPr,fitLine)
+    pl.show()
+    
+    correlationTime = -1.0/result.beta[0]
+    
+    print correlationTime
+    return correlationTime
 
-            frameNo.append(i)
-            
-            Tw = frame.calcTwists()
-            Wr = frame.calcWrithes()
-            
-            twists.append(Tw)
-            writhes.append(Wr)
-            total.append(Tw+Wr)
+def readDataFiles():
+    for fname in glob.glob('data/*'):
+        title = fname[fname.find("/")+1:-4]
+        dataFile = open(fname,'r')
+        plotArray = np.genfromtxt(dataFile,delimiter=',',skip_header=3)
+        
+        frameNo = plotArray[:,0]
+        twists = plotArray[:,1]
+        writhes = plotArray[:,2]        
+        total = plotArray[:,1]+plotArray[:,2]
+        
+        corrTime = autoCorrelation(writhes)
+        
+        
+        pl.plot(frameNo,twists,  color="r", label="Twists" ,marker="o", linestyle=" ")
+        pl.plot(frameNo,writhes, color="b", label="Writhes",marker="o", linestyle=" ")
+        pl.plot(frameNo,total,   color="k", label="Total"  ,marker="o", linestyle=" ")
+        pl.xlabel("Frame Number")
+        pl.ylabel("Total Linking Number")
+        pl.title(title)
+        pl.legend(loc="best")
+        pl.savefig(title, dpi=300, facecolor='w', edgecolor='w',
+                orientation='landscape', papertype=None, format=None,
+                transparent=False, bbox_inches='tight', pad_inches=0.01,
+                frameon=None)
+        pl.close()
+        
 
-    pl.plot(frameNo,twists,  color="r", label="Twists" ,marker="o", linestyle=" ")
-    pl.plot(frameNo,writhes, color="b", label="Writhes",marker="o", linestyle=" ")
-    pl.plot(frameNo,total,   color="k", label="Total"  ,marker="o", linestyle=" ")
-    pl.xlabel("Frame Number")
-    pl.ylabel("Total Linking Number")
-    pl.title(title)
-    pl.legend(loc="best")
-    pl.savefig(title, dpi=300, facecolor='w', edgecolor='w',
-            orientation='landscape', papertype=None, format=None,
-            transparent=False, bbox_inches='tight', pad_inches=0.01,
-            frameon=None)
-    pl.close()
-    print "Complete["
+readDataFiles()
