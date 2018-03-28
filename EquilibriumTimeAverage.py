@@ -27,15 +27,10 @@ class AnalysedFiles(object):
         else:                      self.equibVals = equibVals
         self.getData(dirPath)
             
-    def getData(self,dirPath):
-        
-        i = 0
-        
+    def getData(self,dirPath):        
         for fname in sorted(glob.glob(dirPath+'/*.txt')):
             title = fname[fname.find("/")+1:-4]
             dataFile = open(fname,'r')
-            
-            #print dataFile
             
             plotArray = np.genfromtxt(dataFile,delimiter=',',skip_header=3)
 
@@ -45,10 +40,7 @@ class AnalysedFiles(object):
             writhes = plotArray[:,2]        
             total = plotArray[:,1]+plotArray[:,2]
             
-            equibTime = self.equilibriumRange(twists,i,initialLink)
-            
-            i+=1
-            
+            equibTime = self.equilibriumRange(twists,initialLink)
             self.equibTimes.append(equibTime)
 
             self.Lks.append(initialLink)
@@ -58,14 +50,15 @@ class AnalysedFiles(object):
     def equilibriumRange(self,xData,pos,link):
         if self.equib==False: 
             equibVal = np.mean(xData[20000:])
-            self.equibVals.append(equibVal)
+            self.equibVals.append([link,equibVal])
 
-        else: 
-            equibVal = self.equibVals[pos]
+        else:
+            for i in equibVals:
+                if i[0] == link: equibVal = i
         endRange = 0
         
         for i in xrange(len(xData)):
-            if abs(equibVal - xData[i])<0.4:
+            if abs(equibVal[1] - xData[i])<0.4:
                 endRange = i
                 print "{},{}".format(link,endRange)
                 break
